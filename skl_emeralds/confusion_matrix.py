@@ -1,4 +1,7 @@
 import seaborn as sn
+import matplotlib.colors
+import matplotlib.pyplot as plt
+import numpy as np
 
 def plot_confusion_matrix(model, features, labels, label_names,
                           cmap="viridis", norm = matplotlib.colors.LogNorm(),
@@ -16,7 +19,7 @@ def plot_confusion_matrix(model, features, labels, label_names,
 
     rowsum = res.sum(axis=1)
     rowsum = np.where(rowsum == 0, 1, rowsum)
-    res = res / numpy.tile(np.array([rowsum]).transpose(), (1, res.shape[1]))
+    res = res / np.tile(np.array([rowsum]).transpose(), (1, res.shape[1]))
 
     label_names_by_label = label_names.reset_index().set_index(0)["index"]
 
