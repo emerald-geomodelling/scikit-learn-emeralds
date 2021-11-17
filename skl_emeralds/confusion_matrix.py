@@ -33,7 +33,7 @@ def plot_confusion_matrix(model, features, labels, label_names,
     if not count:
         rowsum = res.sum(axis=1)
         rowsum = np.where(rowsum == 0, 1, rowsum)
-        res = 100 * res / numpy.tile(np.array([rowsum]).transpose(), (1, res.shape[1]))
+        res = 100 * res / np.tile(np.array([rowsum]).transpose(), (1, res.shape[1]))
         format = ".1f"
     else:
         format = ".0f"
