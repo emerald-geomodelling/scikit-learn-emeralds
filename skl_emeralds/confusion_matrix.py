@@ -13,7 +13,12 @@ def plot_confusion_matrix(model, features, labels, label_names,
     proba_layer = model.predict_proba(features)
     label_layer = model.classes_[np.argmax(proba_layer, axis=1)]
 
-    res = np.zeros((np.max(labels)+1, np.max(labels) + 1))
+    size1 = np.max(labels)
+    size2 = np.max(model.classes_)
+    size3 = np.max(label_names)
+    size = np.max([size1, size2, size3]) + 1
+
+    res = np.zeros((size, size))
     for label in np.unique(labels):
         res[label,model.classes_] = proba_layer[labels == label, :].sum(axis=0)
 
