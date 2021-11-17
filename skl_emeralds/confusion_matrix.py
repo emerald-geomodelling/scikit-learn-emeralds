@@ -1,4 +1,7 @@
 import seaborn as sn
+import matplotlib.colors
+import matplotlib.pyplot as plt
+import numpy as np
 
 def plot_confusion_matrix(model, features, labels, label_names,
                           count=False,
