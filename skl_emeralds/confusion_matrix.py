@@ -21,14 +21,19 @@ def plot_confusion_matrix(model, features, labels, label_names,
         p = p.reshape(*proba_layer.shape)
         proba_layer = p
     
-    res = np.zeros((np.max(labels)+1, np.max(labels) + 1))
+    size1 = np.max(labels)
+    size2 = np.max(model.classes_)
+    size3 = np.max(label_names)
+    size = np.max([size1, size2, size3]) + 1
+
+    res = np.zeros((size, size))
     for label in np.unique(labels):
         res[label,model.classes_] = proba_layer[labels == label, :].sum(axis=0)
 
     if not count:
         rowsum = res.sum(axis=1)
         rowsum = np.where(rowsum == 0, 1, rowsum)
-        res = 100 * res / numpy.tile(np.array([rowsum]).transpose(), (1, res.shape[1]))
+        res = 100 * res / np.tile(np.array([rowsum]).transpose(), (1, res.shape[1]))
         format = ".1f"
     else:
         format = ".0f"
