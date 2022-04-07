@@ -33,6 +33,7 @@ def auto_histogram(X, bins=1000, hist_smoothing = 5):
     return {
         "im": im,
         "b": b,
+        "x": x,
         "h": h,
         "hs": hs,
         "w": w,
@@ -94,9 +95,9 @@ def plot_peak_lines(il, ir, x, y, ax=None, **kw):
 
 
 
-def plot_autohistogram(im, b, h, hs, w, il, ir, prominence, ax = None):
+def plot_autohistogram(im, b, h, hs, w, il, ir, prominence, ax = None, x=None):
     if ax is None: ax = plt.gca()
-    x = bin_centers(b)
+    if x is None: x = bin_centers(b)
 
     ax.set_xlim((np.min(b), np.max(b)))
         
@@ -121,3 +122,33 @@ def plot_autohistogram(im, b, h, hs, w, il, ir, prominence, ax = None):
     ax.tick_params(axis='y', colors='red')
     ax.yaxis.label.set_color('red')
     ax.set_ylabel("Count")
+
+def auto_split_filter(data, **kw):
+    """Splits a numpy array into ranges of values based in its histogram,
+    separating each mode of the distribution. Returns a list of tripplets:
+
+    (start, end, mask_array)
+
+    where the mask_array is a binary array of the same shape as data
+    filtering for where start <= data <= end.
+    """
+    autohist = auto_histogram(data[~np.isnan(data)], **kw)
+    cutoffs = np.concatenate(([np.nanmin(data)], autohist["x"][autohist["im"]], [np.nanmax(data)]))
+    ranges = np.column_stack((cutoffs[:-1], cutoffs[1:]))
+    return [(start, end, (data >= start) & (data <= end))
+            for start, end in ranges]
+
+def auto_split_data(data, midpoints=False, **kw):
+    """Like auto_split_filter but returns filtered data arrays instead
+    of boolean filter arrays.
+
+    If midpoints is True, replace data values with the center value of
+    each interval ((start+end)/2).
+    """
+    if midpoints:
+        return [(start, end, np.where(filt, (start + end) / 2, np.nan))
+                for start, end, filt in auto_split_filter(data, **kw)]
+    else:
+        return [(start, end, np.where(filt, data, np.nan))
+                for start, end, filt in auto_split_filter(data, **kw)]
+
