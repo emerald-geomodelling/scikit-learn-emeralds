@@ -4,8 +4,39 @@ import scipy.signal
 import matplotlib.pyplot as plt
 import matplotlib
 
-def auto_histogram(X, bins=1000, hist_smoothing = 5):
+def _auto_bins_histogram(X, bins):
     bin_heights, bin_edges = np.histogram(X, bins=bins)
+    return {
+        "bins": bins,
+        "bin_heights": bin_heights,
+        "bin_edges": bin_edges,
+        "error": ((bin_heights[1:] > 0.0) & (bin_heights[:-1] == 0.0)).sum() / len(bin_heights)}
+
+    
+def auto_bins(X, error=0.05):
+    best = {"bins": 0}
+    steps = 10
+    while best["bins"] < len(X):
+        attempt = _auto_bins_histogram(X, best["bins"] + steps)
+        if attempt["error"] > error:
+            break
+        best = attempt
+        steps *= 2
+    steps //= 2
+    while steps >= 10:
+        attempt = _auto_bins_histogram(X, best["bins"] + steps)
+        if attempt["error"] <= error:
+            best = attempt
+        steps //= 2
+    return best
+
+def auto_histogram(X, bins=None, error=0.05, hist_smoothing = 5):
+    if bins is None:
+        auto = auto_bins(X, error=error)
+        bin_edges = auto['bin_edges']
+        bin_heights = auto['bin_heights']
+    else:
+        bin_heights, bin_edges = np.histogram(X, bins=bins)
     bin_heights_smooth = scipy.ndimage.gaussian_filter1d(bin_heights, hist_smoothing)
 
     bin_centers = bin_edges_to_centers(bin_edges)
