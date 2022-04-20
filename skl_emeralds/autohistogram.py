@@ -30,7 +30,9 @@ def auto_bins(X, error=0.05):
         steps //= 2
     return best
 
-def auto_histogram(X, bins=None, error=0.05, hist_smoothing = 5):
+def auto_histogram(X, bins=None, error=0.05, hist_smoothing = 5, order=1):
+    X = X[~np.isnan(X)]
+    
     if bins is None:
         auto = auto_bins(X, error=error)
         bin_edges = auto['bin_edges']
@@ -40,7 +42,7 @@ def auto_histogram(X, bins=None, error=0.05, hist_smoothing = 5):
     bin_heights_smooth = scipy.ndimage.gaussian_filter1d(bin_heights, hist_smoothing)
 
     bin_centers = bin_edges_to_centers(bin_edges)
-    minima_idx = local_minima(bin_heights_smooth)
+    minima_idx = local_minima(bin_heights_smooth, order)
     minima_idx = merge_plateaus(minima_idx, bin_centers)
     minima_idx = merge_tails(minima_idx, bin_heights_smooth)
 
@@ -62,8 +64,10 @@ def auto_histogram(X, bins=None, error=0.05, hist_smoothing = 5):
 def bin_edges_to_centers(bin_edges):
     return (bin_edges[1:] + bin_edges[:-1]) / 2
 
-def local_minima(y):
-    return scipy.signal.argrelextrema(y, lambda a, b: a <= b, order=20)[0]
+def local_minima(y, order=1):
+    if order < 1:
+        order = order * len(y)
+    return scipy.signal.argrelextrema(y, lambda a, b: a <= b, order=order)[0]
 
 def merge_plateaus(minima_idx, bin_centers):
     xm = bin_centers[minima_idx]
@@ -105,9 +109,24 @@ def plot_peak_lines(il, ir, bin_centers, bin_heights_smooth, ax=None, **kw):
     lines[:,1,1] = rh
     ax.add_collection(matplotlib.collections.LineCollection(lines, **kw))
 
-def plot_autohistogram(minima_idx, bin_edges, bin_heights, bin_heights_smooth, w, il, ir, prominence, ax = None, bin_centers=None):
+def plot_autohistogram(X=None, autohist=None, ax = None, **kw):
     if ax is None: ax = plt.gca()
-    if bin_centers is None: bin_centers = bin_edges_to_centers(bin_edges)
+
+    if isinstance(X, dict):
+        autohist = X
+        X = None
+    if autohist is None:
+        autohist = auto_histogram(X, **kw)
+    
+    minima_idx=autohist["minima_idx"]
+    bin_edges = autohist["bin_edges"]
+    bin_heights = autohist["bin_heights"]
+    bin_heights_smooth = autohist["bin_heights_smooth"]
+    w = autohist["w"]
+    il = autohist["il"]
+    ir = autohist["ir"]
+    prominence = autohist["prominence"]
+    bin_centers = autohist.get("bin_centers", None)
 
     ax.set_xlim((np.min(bin_edges), np.max(bin_edges)))
         
@@ -133,22 +152,64 @@ def plot_autohistogram(minima_idx, bin_edges, bin_heights, bin_heights_smooth, w
     ax.yaxis.label.set_color('red')
     ax.set_ylabel("Count")
 
-def auto_split_filter(data, **kw):
+def plot_data_split(X, weights=None, autohist=None, cmap="rainbow", labelmap=["XSoft", "Soft", "SSoft", "Medium", "SHard", "Hard", "XHard"], ax=None, **kw):
+    if isinstance(cmap, str):
+        cmap = plt.cm.get_cmap(cmap)
+    if ax is None:
+        ax = plt.gca()
+        
+    if autohist is None:
+        autohist = auto_histogram(X, **kw)
+        
+    cutoffs = np.concatenate((
+        [autohist["bin_edges"].min()],
+        autohist["bin_centers"][autohist["minima_idx"]],
+        [autohist["bin_edges"].max()]))
+    
+    labelmap = np.array(labelmap)
+    labels = labelmap[
+        np.linspace(0, len(labelmap) - 1,
+                    len(cutoffs) - 1).round().astype(int)]
+    
+    n, bins, patches = ax.hist(X, weights=weights, bins=cutoffs, rwidth=0.9)
+    for idx, patch in enumerate(patches):
+        patch.set_color(cmap(idx / len(patches)))
+
+    if hasattr(X, "name"):
+        ax.set_xlabel(X.name)
+    if weights is None:
+        ax.set_ylabel("Count")
+    else:
+        if hasattr(weights, "name"):
+            ax.set_ylabel(weights.name)
+        
+    ax2 = ax.twiny()
+    ax2.xaxis.set_ticks_position("bottom")
+    ax2.set_xticks((cutoffs[:-1] + cutoffs[1:])/2)
+    ax2.set_xticklabels(labels)
+    ax2.set_xlim(ax.get_xlim())
+    ax.set_frame_on(False)
+    ax.spines["bottom"].set_position(("axes", -0.03))
+    
+    return n, bins, patches
+    
+def auto_split_filter(X, autohist = None, **kw):
     """Splits a numpy array into ranges of values based in its histogram,
     separating each mode of the distribution. Returns a list of tripplets:
 
     (start, end, mask_array)
 
-    where the mask_array is a binary array of the same shape as data
-    filtering for where start <= data <= end.
+    where the mask_array is a binary array of the same shape as X
+    filtering for where start <= X <= end.
     """
-    autohist = auto_histogram(data[~np.isnan(data)], **kw)
-    cutoffs = np.concatenate(([np.nanmin(data)], autohist["bin_centers"][autohist["minima_idx"]], [np.nanmax(data)]))
+    if autohist is None:
+        autohist = auto_histogram(X, **kw)
+    cutoffs = np.concatenate(([np.nanmin(X)], autohist["bin_centers"][autohist["minima_idx"]], [np.nanmax(X)]))
     ranges = np.column_stack((cutoffs[:-1], cutoffs[1:]))
-    return [(start, end, (data >= start) & (data <= end))
+    return [(start, end, (X >= start) & (X <= end))
             for start, end in ranges]
 
-def auto_split_data(data, midpoints=False, **kw):
+def auto_split_data(X, midpoints=False, **kw):
     """Like auto_split_filter but returns filtered data arrays instead
     of boolean filter arrays.
 
@@ -157,8 +218,8 @@ def auto_split_data(data, midpoints=False, **kw):
     """
     if midpoints:
         return [(start, end, np.where(filt, (start + end) / 2, np.nan))
-                for start, end, filt in auto_split_filter(data, **kw)]
+                for start, end, filt in auto_split_filter(X, **kw)]
     else:
-        return [(start, end, np.where(filt, data, np.nan))
-                for start, end, filt in auto_split_filter(data, **kw)]
+        return [(start, end, np.where(filt, X, np.nan))
+                for start, end, filt in auto_split_filter(X, **kw)]
 
