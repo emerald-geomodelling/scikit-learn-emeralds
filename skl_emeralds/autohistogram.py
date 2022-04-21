@@ -31,10 +31,10 @@ class Autohistogram(object):
         X = X[~np.isnan(X)]
 
         if self.bins is None:
-            self.bin_heights, self.bin_edges = self._auto_bins(X)
+            self.hist_bin_heights, self.hist_bin_edges = self._auto_bins(X)
         else:
-            self.bin_heights, self.bin_edges = np.histogram(X, bins=self.bins)
-        self.bin_heights_smooth = scipy.ndimage.gaussian_filter1d(self.bin_heights, self.hist_smoothing)
+            self.hist_bin_heights, self.hist_bin_edges = np.histogram(X, bins=self.bins)
+        self.hist_bin_heights_smooth = scipy.ndimage.gaussian_filter1d(self.hist_bin_heights, self.hist_smoothing)
 
         self._calculate_local_minima()
         self._merge_plateaus()
@@ -80,22 +80,22 @@ class Autohistogram(object):
                 for start, end, filt in ranges]
     
     @property
-    def bin_centers(self):
-        return (self.bin_edges[1:] + self.bin_edges[:-1]) / 2
+    def hist_bin_centers(self):
+        return (self.hist_bin_edges[1:] + self.hist_bin_edges[:-1]) / 2
 
     @property
-    def data_ranges(self):
+    def bin_edges(self):
         return np.concatenate((
-            [self.bin_edges.min()],
-            self.bin_centers[self.minima_idx],
-            [self.bin_edges.max()]))
+            [self.hist_bin_edges.min()],
+            self.hist_bin_centers[self.minima_idx],
+            [self.hist_bin_edges.max()]))
         
     def plot_peak_lines(self, ax=None, **kw):
         if ax is None: ax = plt.gca()
-        l = self.bin_centers[self.il]
-        r = self.bin_centers[self.ir]
-        lh = self.bin_heights_smooth[self.il]
-        rh = self.bin_heights_smooth[self.ir]
+        l = self.hist_bin_centers[self.il]
+        r = self.hist_bin_centers[self.ir]
+        lh = self.hist_bin_heights_smooth[self.il]
+        rh = self.hist_bin_heights_smooth[self.ir]
         lines = np.zeros((len(l), 2, 2))
         lines[:,0,0] = l
         lines[:,0,1] = lh
@@ -107,31 +107,31 @@ class Autohistogram(object):
         if ax is None: ax = plt.gca()
 
         minima_idx = self.minima_idx
-        bin_edges = self.bin_edges
-        bin_heights = self.bin_heights
-        bin_heights_smooth = self.bin_heights_smooth
+        bin_edges = self.hist_bin_edges
+        bin_heights = self.hist_bin_heights
+        bin_heights_smooth = self.hist_bin_heights_smooth
         w = self.w
         il = self.il
         ir = self.ir
         prominence = self.prominence
-        bin_centers = self.bin_centers
+        hist_bin_centers = self.hist_bin_centers
 
         ax.set_xlim((np.min(bin_edges), np.max(bin_edges)))
 
-        ax.plot(bin_centers, bin_heights, c="blue", alpha=0.2, label="Histogram")
-        ax.plot(bin_centers, bin_heights_smooth, c="red", label="Smoothed histogram")
-        ax.scatter(bin_centers[minima_idx], bin_heights_smooth[minima_idx], s=400, c="purple")
+        ax.plot(hist_bin_centers, bin_heights, c="blue", alpha=0.2, label="Histogram")
+        ax.plot(hist_bin_centers, bin_heights_smooth, c="red", label="Smoothed histogram")
+        ax.scatter(hist_bin_centers[minima_idx], bin_heights_smooth[minima_idx], s=400, c="purple")
 
         ax.set_ylim((0, bin_heights_smooth.max()))
 
         self.plot_peak_lines(ax=ax, colors="black", linewidths=2)
 
         ax.scatter(
-            bin_centers[minima_idx], prominence,
+            hist_bin_centers[minima_idx], prominence,
             s=25, c="green", label="Prominence")
 
         ax2 = plt.gca().secondary_xaxis("top")
-        ax2.set_xticks(bin_centers[minima_idx])
+        ax2.set_xticks(hist_bin_centers[minima_idx])
 
         handles1, labels1 = ax.get_legend_handles_labels()
         ax.legend(handles1, labels1)
@@ -148,10 +148,10 @@ class Autohistogram(object):
         if ax is None:
             ax = plt.gca()
 
-        cutoffs = self.data_ranges
+        cutoffs = self.bin_edges
 
         if value_based_cmap:
-            split_centers = ((cutoffs[1:] + cutoffs[:-1]) / 2) / self.bin_edges.max()
+            split_centers = ((cutoffs[1:] + cutoffs[:-1]) / 2) / self.hist_bin_edges.max()
         else:
             split_centers = np.linspace(0, 1, len(cutoffs) - 1)
         labels = labelmap(split_centers)
@@ -183,7 +183,7 @@ class Autohistogram(object):
     def _cutoffs(self, X):
         return np.concatenate((
             [np.nanmin(X) - 1],
-            self.bin_centers[self.minima_idx],
+            self.hist_bin_centers[self.minima_idx],
             [np.nanmax(X) + 1]))    
     
     def _auto_bins(self, X):
@@ -210,17 +210,16 @@ class Autohistogram(object):
             "bin_heights": bin_heights,
             "bin_edges": bin_edges,
             "error": ((bin_heights[1:] > 0.0) & (bin_heights[:-1] == 0.0)).sum() / len(bin_heights)}
-
     
     def _calculate_local_minima(self):
-        y = self.bin_heights_smooth
+        y = self.hist_bin_heights_smooth
         order = self.order
         if order < 1:
             order = order * len(y)
         self.minima_idx = scipy.signal.argrelextrema(y, lambda a, b: a <= b, order=order)[0]
 
     def _merge_plateaus(self):
-        xm = self.bin_centers[self.minima_idx]
+        xm = self.hist_bin_centers[self.minima_idx]
         minsep = (xm[1:] - xm[:-1]).min()
         self.minima_idx = self.minima_idx[xm - np.concatenate(([-1], xm[:-1])) > minsep * 2]
 
@@ -229,18 +228,18 @@ class Autohistogram(object):
             if j < 0:
                 return 0
             elif j >= len(self.minima_idx):
-                return len(self.bin_heights_smooth)
+                return len(self.hist_bin_heights_smooth)
             return self.minima_idx[j]
         self.minima_idx = [
             self.minima_idx[j] for j in range(len(self.minima_idx))
-            if not (   (self.bin_heights_smooth[:get_i(j+1)] < np.mean(self.bin_heights_smooth)).min()
-                    or (self.bin_heights_smooth[get_i(j-1):] < np.mean(self.bin_heights_smooth)).min())]
+            if not (   (self.hist_bin_heights_smooth[:get_i(j+1)] < np.mean(self.hist_bin_heights_smooth)).min()
+                    or (self.hist_bin_heights_smooth[get_i(j-1):] < np.mean(self.hist_bin_heights_smooth)).min())]
 
     def _calculate_peak_widths(self):
-        self.w = scipy.signal.peak_widths(-self.bin_heights_smooth, self.minima_idx)[0]
+        self.w = scipy.signal.peak_widths(-self.hist_bin_heights_smooth, self.minima_idx)[0]
         self.il = (self.minima_idx - self.w / 2).astype(int)
         self.ir = (self.minima_idx + self.w / 2).astype(int)
 
     def _callculate_prominences(self):
-        self.prominence = scipy.signal.peak_prominences(-self.bin_heights_smooth, self.minima_idx)[0]
+        self.prominence = scipy.signal.peak_prominences(-self.hist_bin_heights_smooth, self.minima_idx)[0]
     
