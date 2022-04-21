@@ -152,28 +152,51 @@ def plot_autohistogram(X=None, autohist=None, ax = None, **kw):
     ax.yaxis.label.set_color('red')
     ax.set_ylabel("Count")
 
-def plot_data_split(X, weights=None, autohist=None, cmap="rainbow", labelmap=["XSoft", "Soft", "SSoft", "Medium", "SHard", "Hard", "XHard"], ax=None, **kw):
+def make_labelmap(labels):
+    labels = np.array(labels)
+    def labelmap(values):
+        single = False
+        if isinstance(values, float):
+            single = True
+            values = [values]
+        indexes = (np.array(values) * (len(labels) - 1)).round().astype(int)
+        ret = labels[indexes]
+        if single:
+            ret = ret[0]
+        return ret
+    return labelmap
+
+default_labelmap = ["XSoft", "Soft", "SSoft", "Medium", "SHard", "Hard", "XHard"]
+
+def bins_to_data_ranges(autohist):
+    return np.concatenate((
+        [autohist["bin_edges"].min()],
+        autohist["bin_centers"][autohist["minima_idx"]],
+        [autohist["bin_edges"].max()]))
+
+def plot_data_split(X, weights=None, autohist=None, value_based_cmap=True, cmap="rainbow", labelmap=default_labelmap, ax=None, **kw):
     if isinstance(cmap, str):
         cmap = plt.cm.get_cmap(cmap)
+    if not callable(labelmap):
+        labelmap = make_labelmap(labelmap)
     if ax is None:
         ax = plt.gca()
         
     if autohist is None:
         autohist = auto_histogram(X, **kw)
         
-    cutoffs = np.concatenate((
-        [autohist["bin_edges"].min()],
-        autohist["bin_centers"][autohist["minima_idx"]],
-        [autohist["bin_edges"].max()]))
+    cutoffs = bins_to_data_ranges(autohist)
     
-    labelmap = np.array(labelmap)
-    labels = labelmap[
-        np.linspace(0, len(labelmap) - 1,
-                    len(cutoffs) - 1).round().astype(int)]
-    
+    if value_based_cmap:
+        split_centers = ((cutoffs[1:] + cutoffs[:-1]) / 2) / autohist["bin_edges"].max()
+    else:
+        split_centers = np.linspace(0, 1, len(cutoffs) - 1)
+    labels = labelmap(split_centers)
+    colors = cmap(split_centers)
+        
     n, bins, patches = ax.hist(X, weights=weights, bins=cutoffs, rwidth=0.9)
-    for idx, patch in enumerate(patches):
-        patch.set_color(cmap(idx / len(patches)))
+    for patch, color in zip(patches, colors):
+        patch.set_color(color)
 
     if hasattr(X, "name"):
         ax.set_xlabel(X.name)
