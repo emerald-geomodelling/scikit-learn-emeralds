@@ -3,7 +3,7 @@ import scipy.ndimage
 import scipy.signal
 import matplotlib.pyplot as plt
 import matplotlib
-        
+
 def make_labelmap(labels):
     labels = np.array(labels)
     def labelmap(values):
@@ -43,6 +43,9 @@ class Autohistogram(object):
         self._callculate_prominences()        
         
     def predict(self, X):
+        shape = X.shape
+        X = X.flatten()
+        
         cutoffs = self._cutoffs(X)
         
         X_p, lower_p = np.meshgrid(X, cutoffs[:-1], indexing="ij")
@@ -54,7 +57,7 @@ class Autohistogram(object):
         data_cls = np.full(X.shape, -1)
         data_cls[idx] = cls
 
-        return data_cls
+        return data_cls.reshape(shape)
 
     def predict_ranges_filt(self, X):
         """Returns tripplets (start, end, mask_array) for each data range
@@ -69,12 +72,12 @@ class Autohistogram(object):
         return [(start, end, pred == idx)
                 for idx, (start, end) in enumerate(ranges)]
 
-    def predict_ranges_midpoints(X):
+    def predict_ranges_midpoints(self, X):
         ranges = self.predict_ranges_filt(X)
         return [(start, end, np.where(filt, (start + end) / 2, np.nan))
                 for start, end, filt in ranges]
     
-    def predict_ranges_values(X, midpoints=False):
+    def predict_ranges_values(self, X):
         ranges = self.predict_ranges_filt(X)
         return [(start, end, np.where(filt, X, np.nan))
                 for start, end, filt in ranges]
