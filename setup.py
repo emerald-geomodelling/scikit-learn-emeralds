@@ -16,6 +16,7 @@ setuptools.setup(
     install_requires=[
         "seaborn",
         "pandas",
-        "numpy"
+        "numpy",
+        "scipy"
     ],
 )
