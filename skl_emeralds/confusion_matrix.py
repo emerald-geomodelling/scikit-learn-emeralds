@@ -2,6 +2,7 @@ import seaborn as sn
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 def plot_confusion_matrix(model, features, labels, label_names,
                           count=False,
@@ -21,14 +22,14 @@ def plot_confusion_matrix(model, features, labels, label_names,
         p = p.reshape(*proba_layer.shape)
         proba_layer = p
     
-    size1 = np.max(labels)
-    size2 = np.max(model.classes_)
-    size3 = np.max(label_names)
-    size = np.max([size1, size2, size3]) + 1
+    size1 = len(np.unique(labels))
+    size2 = len(np.unique(model.classes_))
+    size3 = len(np.unique(label_names))
+    size = np.max([size1, size2, size3])
 
-    res = np.zeros((size, size))
+    res = pd.DataFrame().rename_axis(index='true_label', columns='predicted_label')#np.zeros((size, size))
     for label in np.unique(labels):
-        res[label,model.classes_] = proba_layer[labels == label, :].sum(axis=0)
+        res.loc[label,model.classes_] = proba_layer[labels == label, :].sum(axis=0)
 
     if not count:
         rowsum = res.sum(axis=1)
