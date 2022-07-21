@@ -21,11 +21,14 @@ def make_labelmap(labels):
 default_labelmap = ["XSoft", "Soft", "SSoft", "Medium", "SHard", "Hard", "XHard"]
 
 class Autohistogram(object):
-    def __init__(self, bins=None, ranges=10, order=1):
+    def __init__(self, bins=None, ranges=10, order=1, max_tail_angle=0.05, merge_plateaus=True, move_tails=True):
         self.bins = bins
         self.order = order
         self.max_ranges = ranges
-
+        self.max_tail_angle = max_tail_angle
+        self.merge_plateaus = merge_plateaus
+        self.move_tails = move_tails
+        
     def fit(self, X):
         X = X[~np.isnan(X)]
 
@@ -38,8 +41,9 @@ class Autohistogram(object):
             self.hist_bin_heights, self.hist_bin_edges = np.histogram(X, bins=self.bins)
             self.minima_idx = self._calculate_local_minima()
         
-        self._merge_plateaus()
-        self._merge_tails()
+        if self.merge_plateaus: self._merge_plateaus()
+        if self.move_tails: self._move_tails()
+
         self._calculate_peak_widths()
         self._callculate_prominences()        
         
@@ -122,15 +126,14 @@ class Autohistogram(object):
         ax.set_xlim((np.min(bin_edges), np.max(bin_edges)))
 
         ax.plot(hist_bin_centers, bin_heights, c="blue", alpha=0.2, label="Histogram")
-        ax.vlines(hist_bin_centers[minima_idx], 0,  bin_heights.max(), color="purple")
-        ax.scatter(hist_bin_centers[minima_idx], bin_heights[minima_idx], s=400, c="purple", label="Local miniam")
+        ax.vlines(hist_bin_centers[minima_idx], 0,  bin_heights.max(), color="purple", label="Ranges")
         
         ax.set_ylim((0, bin_heights.max()))
 
         self.plot_peak_lines(ax=ax, colors="black", linewidths=2)
 
         ax.scatter(
-            hist_bin_centers[minima_idx], prominence,
+            hist_bin_centers[minima_idx], bin_heights.max() * prominence / prominence.max(),
             s=25, c="green", label="Prominence")
 
         ax2 = plt.gca().secondary_xaxis("top")
@@ -227,18 +230,28 @@ class Autohistogram(object):
         minsep = (xm[1:] - xm[:-1]).min()
         self.minima_idx = self.minima_idx[xm - np.concatenate(([-1], xm[:-1])) > minsep * 2]
 
-    def _merge_tails(self):
-        def get_i(j):
-            if j < 0:
-                return 0
-            elif j >= len(self.minima_idx):
-                return len(self.hist_bin_heights)
-            return self.minima_idx[j]
-        self.minima_idx = [
-            self.minima_idx[j] for j in range(len(self.minima_idx))
-            if not (   (self.hist_bin_heights[:get_i(j+1)] < np.mean(self.hist_bin_heights)).min()
-                    or (self.hist_bin_heights[get_i(j-1):] < np.mean(self.hist_bin_heights)).min())]
+    def _calculate_tails(self):
+        bin_angles = (self.hist_bin_heights[2:] - self.hist_bin_heights[:-2]) / self.hist_bin_heights.max()
+        bin_angles = np.concatenate((bin_angles[:1], bin_angles, bin_angles[-1:]))
+        bin_angles = np.abs(bin_angles)
 
+        bin_angles_left_max = np.maximum.accumulate(bin_angles)
+        bin_angles_right_max = np.maximum.accumulate(bin_angles[::-1])[::-1]
+
+        bin_area_left = np.add.accumulate(self.hist_bin_heights)
+        bin_area_right = np.add.accumulate(self.hist_bin_heights[::-1])[::-1]
+
+        left = np.where((bin_angles_left_max > self.max_tail_angle) | (bin_area_left > self.hist_bin_heights.max()))[0][0]
+        right = np.where((bin_angles_right_max > self.max_tail_angle) | (bin_area_right > self.hist_bin_heights.max()))[0][-1]
+
+        return left, right
+
+    def _move_tails(self):
+        left, right = self._calculate_tails()
+
+        self.minima_idx = np.concatenate((
+            [left], self.minima_idx[(self.minima_idx > left) & (self.minima_idx < right)], [right]))
+        
     def _calculate_peak_widths(self):
         self.w = scipy.signal.peak_widths(-self.hist_bin_heights, self.minima_idx)[0]
         self.il = (self.minima_idx - self.w / 2).astype(int)
