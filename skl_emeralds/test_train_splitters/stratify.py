@@ -6,7 +6,7 @@ import elnes
 import math
 from skl_emeralds.print import *
 
-def test_train_split_balance_oversample_minority_stratify(arr, filt, test_size, verbose=None):
+def test_train_split_balance_oversample_minority_stratify(arr, filt, test_size, verbose=None, random_state = None):
     print('Stratifying by label, then balancing')
 
     if verbose:
