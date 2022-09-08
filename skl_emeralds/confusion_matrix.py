@@ -9,7 +9,20 @@ def plot_confusion_matrix(model, features, labels, label_names,
                           cmap="viridis", norm = matplotlib.colors.LogNorm(),
                           ax = None,
                           **kw):
-    
+    """
+
+
+    @param model: a trained classifier model from scikit-learn, for example, a RandomForestClassifier
+    @param features: numpy array (size n_observations x n_features) of features to input to model
+    @param labels: numpy array (size n_observations) of the true values as integers
+    @param label_names: pandas.Series translating string names of the classes (index) to integer values like those in labels
+    @param count: render category counts if True, proportions in False
+    @param cmap: colormap to pass to matplotlib
+    @param norm: norm to pass to matplotlib
+    @param ax: matplotlib.pyplot.Axes object. If None, use the current axes available.
+    @param kw: keywords to pass on to seaborn.heatmap
+    @return:
+    """
     if ax is None: ax = plt.gca()
     
     proba_layer = model.predict_proba(features)
@@ -35,13 +48,12 @@ def plot_confusion_matrix(model, features, labels, label_names,
         rowsum = res.sum(axis=1)
         rowsum = np.where(rowsum == 0, 1, rowsum)
         res = 100 * res / np.tile(np.array([rowsum]).transpose(), (1, res.shape[1]))
-        format = ".1f"
-    else:
-        format = ".0f"
+    format = ".0f"
     
     label_names_by_label = label_names.reset_index().set_index(0)["index"]
-    
-    sn.heatmap(res, annot=True, annot_kws={"size": 16}, fmt=format,
+    label_names_by_label = label_names_by_label.loc[np.unique(labels)]
+
+    sn.heatmap(res, annot=True, annot_kws={"size": 10}, fmt=format,
                xticklabels = label_names_by_label,
                yticklabels = label_names_by_label,
                norm = norm,
