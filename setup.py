@@ -5,7 +5,7 @@ import os
 
 setuptools.setup(
     name='scikit-learn-emeralds',
-    version='0.0.2',
+    version="0.10.3",
     description='Collection of utils for scikit-learn & scipy',
     long_description="""Collection of utils for scikit-learn & scipy""",
     long_description_content_type="text/markdown",
