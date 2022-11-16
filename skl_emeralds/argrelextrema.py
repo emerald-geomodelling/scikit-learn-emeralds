@@ -6,7 +6,7 @@ def group_arange(groups):
     """Creates an integer index for each row inside a group, for all groups. Input is series of group ids."""
     return groups.groupby(groups).apply(lambda a: pd.Series(np.arange(len(a)), index=a.index))
 
-def dfargrelextrema(data, op=np.greater, ffill=True):
+def dfargrelextrema(data, op=np.greater, ffill=True, **kw):
     """Find the local maxima along the second axis of data using
     scipy.signal.argrelextrema(), and returns a dataframe of the
     indexes of the local extrema. Rows in the returned df corresponds
@@ -15,7 +15,7 @@ def dfargrelextrema(data, op=np.greater, ffill=True):
     row if ffill==True."""
 
     y, x = scipy.signal.argrelextrema(
-        data.values, op, axis=1)
+        data.values, op, axis=1, **kw)
 
     maxids = pd.DataFrame({"x": x, "y": y})
     maxids["layer"] = group_arange(maxids.y)
