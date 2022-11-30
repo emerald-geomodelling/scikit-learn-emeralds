@@ -109,3 +109,18 @@ def dfextrema_to_surfaces(layers, maxchange = None):
                       "idx": surface["start"] + np.arange(surface["layers"].shape[0]),
                       "surface": idx})
         for idx, surface in enumerate(surfaces)])
+
+def filter_dfextrema(layers, layer_filter):
+    """Filters the output of dfargrelextrema by a boolean dataframe of the
+    same shape as the data input to dfargrelextrema, only keeping
+    extremas where the boolean filter is True.
+    """
+
+    layers_melt = layers.reset_index(names="sounding_idx").melt(id_vars="sounding_idx", var_name="extema_idx", value_name="layer")
+    layers_melt = layers_melt.loc[~layers_melt.layer.isna()].astype(int).reset_index(drop=True)
+
+    layers_melt = layers_melt.loc[
+        layer_filter[layers_melt.sounding_idx.values, layers_melt.layer.values]
+    ].astype(pd.Int64Dtype())
+
+    return layers[[]].join(layers_melt.pivot("sounding_idx", "extema_idx", "layer"))
