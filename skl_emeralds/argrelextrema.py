@@ -38,7 +38,7 @@ def dfextrema_to_numpy(layers):
     return np.where(l < 0, np.broadcast_to((np.arange(l.shape[1]) + 1) *  -100, l.shape), l)
     
 
-def dfextrema_connectivity(layers):
+def dfextrema_connectivity(layers, start_new_surface = None):
     l = dfextrema_to_numpy(layers)
 
     ls = np.broadcast_to(l.reshape((l.shape[0], 1, l.shape[1])), (l.shape[0], l.shape[1], l.shape[1]))
@@ -47,16 +47,19 @@ def dfextrema_connectivity(layers):
     connectivity = np.argmin(np.abs(nsl[1:,:,:] - ls[:-1,:,:]), axis=2)
     connectivity = np.concatenate((np.arange(l.shape[1]).reshape(1, l.shape[1]), connectivity))
 
-    changeovers = np.where(
-           (connectivity != np.broadcast_to([np.arange(connectivity.shape[1])],
-                                            connectivity.shape)
-           ).max(axis=1)
-        | np.concatenate(([False], ((l[:-1] < 0) != (l[1:,:] < 0)).max(axis=1)))
-    )[0]
+    changeovers = (
+        (connectivity != np.broadcast_to([np.arange(connectivity.shape[1])],
+                                            connectivity.shape)).max(axis=1)
+        | np.concatenate(([False], ((l[:-1] < 0) != (l[1:,:] < 0)).max(axis=1))))
+    
+    if start_new_surface is not None:
+        changeovers = changeovers | start_new_surface
+
+    changeovers = np.where(changeovers)[0]
     
     return connectivity, changeovers
 
-def dfextrema_to_surfaces(layers, maxchange = None):
+def dfextrema_to_surfaces(layers, start_new_surface = None, maxchange = None):
     """Takes the output from dfargrelextrema and connects up extrema
     points from consecutive rows, in such a way as to generate as
     contiguous surfaces as possible. If maxchange is specified, a
@@ -65,7 +68,7 @@ def dfextrema_to_surfaces(layers, maxchange = None):
     """
     
     l = dfextrema_to_numpy(layers)
-    connectivity, changeovers = dfextrema_connectivity(layers)
+    connectivity, changeovers = dfextrema_connectivity(layers, start_new_surface)
     
     surfaces = []
     current_surfaces = {}
@@ -87,7 +90,11 @@ def dfextrema_to_surfaces(layers, maxchange = None):
         for layeridx in range(0, l.shape[1]):
             oldlayeridx = connectivity[changeover,layeridx]
             if oldlayeridx in old_surfaces:
-                if maxchange is None or np.abs(l[changeover-1, oldlayeridx] - l[changeover, layeridx]) < maxchange:
+                disconnect = (    (start_new_surface is not None
+                                   and start_new_surface[changeover])
+                               or (maxchange is not None
+                                   and np.abs(l[changeover-1, oldlayeridx] - l[changeover, layeridx]) >= maxchange))
+                if not disconnect:
                     current_surfaces[layeridx] = old_surfaces.pop(oldlayeridx)
         surfaces.extend(old_surfaces.values())
         last_changeover = changeover
@@ -108,7 +115,7 @@ def dfextrema_to_surfaces(layers, maxchange = None):
         pd.DataFrame({"layers": surface["layers"],
                       "idx": surface["start"] + np.arange(surface["layers"].shape[0]),
                       "surface": idx})
-        for idx, surface in enumerate(surfaces)])
+        for idx, surface in enumerate(surfaces)], ignore_index=True)
 
 def filter_dfextrema(layers, layer_filter):
     """Filters the output of dfargrelextrema by a boolean dataframe of the
