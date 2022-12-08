@@ -17,6 +17,9 @@ def dfargrelextrema(data, op=np.greater, ffill=True, **kw):
     y, x = scipy.signal.argrelextrema(
         data.values, op, axis=1, **kw)
 
+    if not len(y):
+        return pd.DataFrame(index=data.index)
+        
     maxids = pd.DataFrame({"x": x, "y": y})
     maxids["layer"] = group_arange(maxids.y)
     
@@ -40,6 +43,9 @@ def dfextrema_to_numpy(layers):
 
 def dfextrema_connectivity(layers, start_new_surface = None):
     l = dfextrema_to_numpy(layers)
+
+    if l.shape[1] == 0:
+        return pd.DataFrame(index=layers.index).values, pd.DataFrame().values
 
     ls = np.broadcast_to(l.reshape((l.shape[0], 1, l.shape[1])), (l.shape[0], l.shape[1], l.shape[1]))
     nsl = np.broadcast_to(l.reshape(l.shape + (1,)), ls.shape)
@@ -110,7 +116,8 @@ def dfextrema_to_surfaces(layers, start_new_surface = None, maxchange = None):
     for surface in surfaces:
         surface["layers"] = np.concatenate(surface["layers"])
 
-
+    if not len(surfaces):
+        return pd.DataFrame(columns=["layers", "idx", "surface"]).astype({"layers": int, "idx": int, "surface": int})
     return pd.concat([
         pd.DataFrame({"layers": surface["layers"],
                       "idx": surface["start"] + np.arange(surface["layers"].shape[0]),
