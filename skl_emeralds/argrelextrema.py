@@ -41,7 +41,7 @@ def dfextrema_to_numpy(layers):
     return np.where(l < 0, np.broadcast_to((np.arange(l.shape[1]) + 1) *  -100, l.shape), l)
     
 
-def dfextrema_connectivity(layers, start_new_surface = None):
+def dfextrema_connectivity(layers):
     l = dfextrema_to_numpy(layers)
 
     if l.shape[1] == 0:
@@ -58,11 +58,6 @@ def dfextrema_connectivity(layers, start_new_surface = None):
                                             connectivity.shape)).max(axis=1)
         | np.concatenate(([False], ((l[:-1] < 0) != (l[1:,:] < 0)).max(axis=1))))
     
-    if start_new_surface is not None:
-        changeovers = changeovers | start_new_surface
-
-    changeovers = np.where(changeovers)[0]
-    
     return connectivity, changeovers
 
 def dfextrema_to_surfaces(layers, start_new_surface = None, maxchange = None):
@@ -74,7 +69,21 @@ def dfextrema_to_surfaces(layers, start_new_surface = None, maxchange = None):
     """
     
     l = dfextrema_to_numpy(layers)
-    connectivity, changeovers = dfextrema_connectivity(layers, start_new_surface)
+    connectivity, changeovers = dfextrema_connectivity(layers)
+
+    disconnect = np.zeros(l.shape, dtype=bool)
+    if start_new_surface is not None:
+        disconnect[start_new_surface, :] = True
+
+    if maxchange is not None:
+        for layeridx in range(0, l.shape[1]):
+            oldlayeridx = connectivity[1:,layeridx]
+
+            above = np.concatenate(([False], np.abs(l[1:, layeridx] - l[np.arange(len(oldlayeridx)), oldlayeridx]) >= maxchange))
+            disconnect[above, layeridx] = True
+
+    changeovers = changeovers | disconnect.max(axis=1)    
+    changeovers = np.where(changeovers)[0]
     
     surfaces = []
     current_surfaces = {}
@@ -96,11 +105,7 @@ def dfextrema_to_surfaces(layers, start_new_surface = None, maxchange = None):
         for layeridx in range(0, l.shape[1]):
             oldlayeridx = connectivity[changeover,layeridx]
             if oldlayeridx in old_surfaces:
-                disconnect = (    (start_new_surface is not None
-                                   and start_new_surface[changeover])
-                               or (maxchange is not None
-                                   and np.abs(l[changeover-1, oldlayeridx] - l[changeover, layeridx]) >= maxchange))
-                if not disconnect:
+                if not disconnect[changeover, layeridx]:
                     current_surfaces[layeridx] = old_surfaces.pop(oldlayeridx)
         surfaces.extend(old_surfaces.values())
         last_changeover = changeover
