@@ -60,13 +60,17 @@ def dfextrema_connectivity(layers):
     
     return connectivity, changeovers
 
-def dfextrema_to_surfaces(layers, start_new_surface = None, maxchange = None):
+def dfextrema_to_surfaces(layers, layers_groups=None, start_new_surface = None, maxchange = None):
     """Takes the output from dfargrelextrema and connects up extrema
     points from consecutive rows, in such a way as to generate as
     contiguous surfaces as possible. If maxchange is specified, a
     surface is broken in two if the extrema positions differ more than
     maxchange.
     """
+
+    if layers_groups is None:
+        layers_groups = pd.DataFrame(index=layers.index, columns=layers.columns)
+        layers_groups.values[:,:] = 0
     
     l = dfextrema_to_numpy(layers)
     connectivity, changeovers = dfextrema_connectivity(layers)
@@ -82,6 +86,16 @@ def dfextrema_to_surfaces(layers, start_new_surface = None, maxchange = None):
             above = np.concatenate(([False], np.abs(l[1:, layeridx] - l[np.arange(len(oldlayeridx)), oldlayeridx]) >= maxchange))
             disconnect[above, layeridx] = True
 
+    if layers_groups is not None:
+        for layeridx in range(0, l.shape[1]):
+            oldlayeridx = connectivity[1:,layeridx]
+
+            g = layers_groups[1:, layeridx]
+            go = layers_groups[np.arange(len(oldlayeridx)), oldlayeridx]
+            
+            diff = np.concatenate(([False], g != go))
+            disconnect[diff, layeridx] = True
+            
     changeovers = changeovers | disconnect.max(axis=1)    
     changeovers = np.where(changeovers)[0]
     
