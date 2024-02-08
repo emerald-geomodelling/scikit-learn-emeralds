@@ -67,6 +67,21 @@ def dfextrema_to_surfaces(layers, layers_groups=None, start_new_surface = None, 
     contiguous surfaces as possible. If maxchange is specified, a
     surface is broken in two if the extrema positions differ more than
     maxchange.
+
+
+    :param layers: pandas.DataFrame containing the layer indices where a sufficiently high extrema point was located.
+        Shape of layers:
+            number of rows = number of locations being evaluated, with row order assumed to be ordered by adjcent locations
+            number of coolumns= maximum number of extrema points encountered in any location
+    :param layers_groups: I'm afraid I don't remember, I'll have to ask redhog if he recalls
+    :param start_new_surface: pandas.Series with the same index (number of rows) as layers. Indicates where there should
+        be breaks in the surfaces (i.e., consecutive rows are not adjacent points or there's a large gap in the line)
+    :param maxchange: maximum number of layer indices to allow until extrema points are no longer connected on the same
+        surface. For example, if an extrema point is detected at layer index 4 in one location and at layer index 10 at
+        the next location, they will not be connected unless maxchange = .... 5 or 6? I don't recall the behaviour if
+        the difference is exactly equal to maxchange. Anyway, use this parameter to reduce the number of large magnitude
+        steep jumps
+    :return:
     """
 
     if layers_groups is None:
