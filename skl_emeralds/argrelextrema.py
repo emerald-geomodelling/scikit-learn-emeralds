@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import scipy.signal
+import warnings
 
 def group_arange(groups):
     """Creates an integer index for each row inside a group, for all groups. Input is series of group ids."""
@@ -71,7 +72,15 @@ def dfextrema_to_surfaces(layers, layers_groups=None, start_new_surface = None, 
     if layers_groups is None:
         layers_groups = pd.DataFrame(index=layers.index, columns=layers.columns)
         layers_groups.values[:,:] = 0
-    
+    if not isinstance(layers_groups, pd.DataFrame):
+        if isinstance(layers_groups, np.ndarray):
+            warnings.warn(f'layers_group was provided as a numpy.ndarray, not as a pandas.DataFrame. Coverting to '
+                          f'a DataFrame...')
+            layers_groups = pd.DataFrame(layers_groups,index=layers.index, columns=layers.columns)
+        else:
+            raise TypeError(f'layers_groups must be a pandas.DataFrame or a numpy.ndarray that can be converted to one. '
+                            f'In your case, type(layers_groups) ={type(layers_groups)}.')
+
     l = dfextrema_to_numpy(layers)
     connectivity, changeovers = dfextrema_connectivity(layers)
 
@@ -90,8 +99,8 @@ def dfextrema_to_surfaces(layers, layers_groups=None, start_new_surface = None, 
         for layeridx in range(0, l.shape[1]):
             oldlayeridx = connectivity[1:,layeridx]
 
-            g = layers_groups[1:, layeridx]
-            go = layers_groups[np.arange(len(oldlayeridx)), oldlayeridx]
+            g = layers_groups.values[1:, layeridx]
+            go = layers_groups.values[np.arange(len(oldlayeridx)), oldlayeridx]
             
             diff = np.concatenate(([False], g != go))
             disconnect[diff, layeridx] = True
