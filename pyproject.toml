@@ -12,18 +12,6 @@ authors = [
     {name = "Egil Moeller, Craig W. Christensen, et al.", email = "em@emeraldgeo.no"}
 ]
 requires-python = ">=3.9"
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Scientific/Engineering",
-]
 dependencies = [
     "seaborn>=0.12",
     "pandas>=1.5",
