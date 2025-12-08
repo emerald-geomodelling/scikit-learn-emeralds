@@ -33,7 +33,7 @@ def dfargrelextrema(data, op=np.greater, ffill=True, **kw):
 
     res = pd.DataFrame(layers, index=data.index).astype(pd.Int64Dtype()).replace(-1, np.nan)
     if ffill:
-        res = res.T.fillna(method="ffill").T
+        res = res.T.ffill().T
         
     return res
 
