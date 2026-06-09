@@ -180,4 +180,4 @@ def filter_dfextrema(layers, layer_filter):
         layer_filter[layers_melt.sounding_idx.values, layers_melt.layer.values]
     ].astype(pd.Int64Dtype())
 
-    return layers[[]].join(layers_melt.pivot("sounding_idx", "extema_idx", "layer"))
+    return layers[[]].join(layers_melt.pivot(index="sounding_idx", columns="extema_idx", values="layer"))
