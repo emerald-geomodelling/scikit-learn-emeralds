@@ -45,7 +45,7 @@ def test_train_split_balance_oversample_minority_exhaust(arr, filt, test_size=0.
 
     if random_state is not None:
         np.random.seed(int(random_state))
-        classes = np.unique(training_wlabel.label)
+        classes = np.sort(training_wlabel.label.dropna().unique())  # numpy 2: object/NaN-safe
         print('Classes in dataset are: ,', classes)
 
     train, test = exhaust_class_(arr, training_wlabel, test_size, classes)
