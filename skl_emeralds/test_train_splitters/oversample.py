@@ -11,7 +11,7 @@ def test_train_split_balance_oversample_minority_byhole(arr, filt, test_size=0.2
 
     if random_state is not None:
         np.random.seed(int(random_state))
-        classes = np.unique(training_wlabel.label)
+        classes = np.sort(training_wlabel.label.dropna().unique())  # numpy 2: object/NaN-safe
         print('Training classes: ', classes)
 
     if verbose:

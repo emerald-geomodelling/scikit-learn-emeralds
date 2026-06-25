@@ -35,13 +35,19 @@ def plot_confusion_matrix(model, features, labels, label_names,
         p = p.reshape(*proba_layer.shape)
         proba_layer = p
     
-    size1 = len(np.unique(labels))
-    size2 = len(np.unique(model.classes_))
-    size3 = len(np.unique(label_names))
+    # numpy 2 sorts the input to np.unique and raises on object label arrays that mix text with
+    # NaN. Use pandas-native, NaN-safe equivalents (identical for clean numeric labels), keeping
+    # a single explicit NaN label at the end of the axis when labels contain missing values.
+    unique_labels = np.sort(pd.Series(labels).dropna().unique())
+    if pd.isna(labels).any():
+        unique_labels = np.append(unique_labels, np.nan)
+    size1 = len(unique_labels)
+    size2 = pd.Series(model.classes_).nunique(dropna=False)
+    size3 = pd.Series(label_names).nunique(dropna=False)
     size = np.max([size1, size2, size3])
 
     res = pd.DataFrame().rename_axis(index='true_label', columns='predicted_label')#np.zeros((size, size))
-    for label in np.unique(labels):
+    for label in unique_labels:
         res.loc[label,model.classes_] = proba_layer[labels == label, :].sum(axis=0)
 
     if not count:
@@ -51,7 +57,7 @@ def plot_confusion_matrix(model, features, labels, label_names,
     format = ".0f"
     
     label_names_by_label = label_names.reset_index().set_index(0)["index"]
-    label_names_by_label = label_names_by_label.loc[np.unique(labels)]
+    label_names_by_label = label_names_by_label.loc[unique_labels]
 
     sn.heatmap(res, annot=True, annot_kws={"size": 10}, fmt=format,
                xticklabels = label_names_by_label,

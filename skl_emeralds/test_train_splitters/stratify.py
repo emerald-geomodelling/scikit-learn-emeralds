@@ -14,7 +14,7 @@ def test_train_split_balance_oversample_minority_stratify(arr, filt, test_size, 
 
     if random_state is not None:
         np.random.seed(int(random_state))
-    classes = np.unique(filt)
+    classes = np.sort(pd.Series(filt).dropna().unique())  # numpy 2: object/NaN-safe
 
     data_train, data_test, label_train, label_test = sklearn.model_selection.train_test_split(
         arr, filt, test_size=test_size,
