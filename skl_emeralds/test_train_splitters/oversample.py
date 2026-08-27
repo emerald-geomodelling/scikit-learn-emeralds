@@ -85,7 +85,7 @@ def train_test_split_byhole(arr, label, test_size=0.2, hole_id_name='title', ran
         # make new dataframe, pointID shuffled as index, order index as one column, use this as lookup table
         lookup_ds = pd.Series(index=IDs, arr=index_IDs)
         for row_index, value in data.loc[:, hole_id_name].items():
-            data_wLabel.at[row_index, 'ID_order'] = lookup_ds.loc[value].astype(np.int)
+            data_wLabel.at[row_index, 'ID_order'] = lookup_ds.loc[value].astype(int)
         data_wLabel = data_wLabel.sort_values(axis=0, by='ID_order')
 
         n_rows = data_wLabel.shape[0]
